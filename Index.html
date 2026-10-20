@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Live AR Photo</title>
+  <!-- Load A-Frame and MindAR libraries -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  
+  <style>
+    body { margin: 0; overflow: hidden; font-family: sans-serif; }
+    #overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.85); z-index: 9999;
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+      color: white; text-align: center; padding: 20px; box-sizing: border-box;
+    }
+    #start-btn {
+      padding: 14px 32px; font-size: 18px; font-weight: bold;
+      color: #fff; background: #2563eb; border: none; border-radius: 50px;
+      cursor: pointer; margin-top: 20px; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
+    }
+    #scan-hint {
+      position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.6); color: white; padding: 10px 20px;
+      border-radius: 20px; font-size: 14px; z-index: 100; display: none;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Initial Tap Screen (Required by iOS/Android to allow video with sound) -->
+  <div id="overlay">
+    <h2>Live AR Photo</h2>
+    <p>Tap below to allow camera access and point your phone at the picture.</p>
+    <button id="start-btn">Start AR Camera</button>
+  </div>
+
+  <div id="scan-hint">Point camera at the photo...</div>
+
+  <!-- AR Scene -->
+  <a-scene 
+    mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no;" 
+    color-space="sRGB" 
+    renderer="colorManagement: true, physicallyCorrectLights" 
+    vr-mode-ui="enabled: false" 
+    device-orientation-permission-ui="enabled: false">
+    
+    <a-assets>
+      <video id="ar-video" src="./video.mp4" preload="auto" loop="true" playsinline webkit-playsinline crossorigin="anonymous"></video>
+    </a-assets>
+
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+    <!-- Target Index 0 links to the first image in targets.mind -->
+    <a-entity id="target-entity" mindar-image-target="targetIndex: 0">
+      <a-video src="#ar-video" width="1" height="1" position="0 0 0"></a-video>
+    </a-entity>
+  </a-scene>
+
+  <script>
+    const startBtn = document.getElementById('start-btn');
+    const overlay = document.getElementById('overlay');
+    const scanHint = document.getElementById('scan-hint');
+    const sceneEl = document.querySelector('a-scene');
+    const video = document.getElementById('ar-video');
+    const targetEntity = document.getElementById('target-entity');
+
+    // Start AR and unlock video audio on user tap
+    startBtn.addEventListener('click', () => {
+      overlay.style.display = 'none';
+      scanHint.style.display = 'block';
+      
+      const arSystem = sceneEl.systems["mindar-image-system"];
+      arSystem.start();
+
+      // Briefly play and pause to unlock mobile audio restrictions
+      video.play().then(() => {
+        video.pause();
+        video.currentTime = 0;
+      }).catch((err) => console.log("Video unlock wait:", err));
+    });
+
+    // Play video when camera sees the photo
+    targetEntity.addEventListener('targetFound', () => {
+      scanHint.style.display = 'none';
+      video.play();
+    });
+
+    // Pause video when camera moves away from the photo
+    targetEntity.addEventListener('targetLost', () => {
+      scanHint.style.display = 'block';
+      video.pause();
+    });
+  </script>
+</body>
+</html>
